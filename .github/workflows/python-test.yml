@@ -36,7 +36,7 @@ jobs:
       run: python -m unittest discover tests/ && echo tests ok
   
   old-python-test:
-    runs-on: ubuntu-22
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
@@ -51,10 +51,10 @@ jobs:
     strategy:
       matrix:
         python-version: 
-          - 3.7.17
-          - 3.8.18
-          - 3.9.21
-          - '3.10.16'
+          - 3.7
+          - 3.8
+          - 3.9
+          - '3.10'
 
   lint:
     runs-on: ubuntu-latest
