@@ -23,7 +23,7 @@ jobs:
           - '3.13'
           - 3.14-dev
 
-    steps:
+    steps: &python-test-steps
     - uses: actions/checkout@v4
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v5
@@ -36,18 +36,8 @@ jobs:
       run: python -m unittest discover tests/ && echo tests ok
   
   old-python-test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v4
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-    - name: Install dependencies
-      run: |
-        python -m pip install .[test]
-    - name: Run tests
-      run: python -m unittest discover tests/ && echo tests ok
+    runs-on: ubuntu-22.04
+    steps: *python-test-steps
     strategy:
       matrix:
         python-version: 
