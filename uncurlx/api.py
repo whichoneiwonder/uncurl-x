@@ -74,7 +74,7 @@ def parse_context(curl_command):
         parsed_args.json,
     ):
         raise ValueError(
-            "You can only use one kind oof -d/--data, -b/--data-binary, or -F/--form options at a time."
+            "You can only use one kind of -d/--data, -b/--data-binary, or -F/--form options at a time."
         )
     data_content_type = None
     post_data = parsed_args.data or parsed_args.data_binary or parsed_args.form
