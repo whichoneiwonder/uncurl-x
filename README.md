@@ -1,9 +1,9 @@
 # Uncurl-X - Converting curl requests to python httpx requests
 
-<!-- ![Dependencies Status](https://img.shields.io/github/actions/workflow/status/whichoneiwonder/uncurl-x/Dependency%20review?style=flat-square) -->
 ![PyPI - Status](https://img.shields.io/pypi/status/uncurlx?style=flat-square&label=PyPI&)
-![Python test Status](https://img.shields.io/github/actions/workflow/status/whichoneiwonder/uncurl-x/python-test?style=flat-square)
-![GitHub branch status](https://img.shields.io/github/checks-status/whichoneiwonder/uncurl-x/master?style=flat-square)
+![Python test Status](https://img.shields.io/github/actions/workflow/status/whichoneiwonder/uncurl-x/python-test.yml?label=Tests&style=flat-square)
+![Dependencies Status](https://img.shields.io/github/actions/workflow/status/whichoneiwonder/uncurl-x/dependency-check.yml?label=deps-check&style=flat-square)
+<!-- ![GitHub branch status](https://img.shields.io/github/checks-status/whichoneiwonder/uncurl-x/master?style=flat-square) -->
 ![GitHub License](https://img.shields.io/github/license/whichoneiwonder/uncurl-x?style=flat-square)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/t/whichoneiwonder/uncurl-x?style=flat-square)
 ![Format Badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fastral-sh%2Fruff%2Fmain%2Fassets%2Fbadge%2Fv2.json&style=flat-square)
