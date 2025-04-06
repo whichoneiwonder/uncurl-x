@@ -5,7 +5,7 @@ import re
 import shlex
 from collections import OrderedDict, namedtuple
 from http.cookies import SimpleCookie
-from typing import Any, List, Mapping, Optional, Union
+from typing import Any, List, Mapping, Optional, Tuple, Union
 
 parser = argparse.ArgumentParser()
 parser.add_argument("command")
@@ -65,7 +65,7 @@ def parse_headers(
     data_content_type: Optional[str],
     range: Optional[str],
     referer: Optional[str],
-) -> tuple[Mapping[str, str], Mapping[str, str]]:
+) -> Tuple[Mapping[str, str], Mapping[str, str]]:
     """
     Parse headers from the curl command and return a dictionary of headers and cookies.
     :param headers: List of headers from the curl command.
