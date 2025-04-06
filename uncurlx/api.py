@@ -167,7 +167,7 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
     )
 
 
-def parse_proxy(proxy: Optional[str], proxy_user: Optional[str]) -> dict[str, str]:
+def parse_proxy(proxy: Optional[str], proxy_user: Optional[str]) -> Mapping[str, str]:
     # add proxy and its authentication if it's available.
     proxies = proxy
     # proxy_auth = proxy_user
@@ -248,7 +248,7 @@ def parse_curl_range(range_str: str) -> str:
     return f"{unit}={formatted_ranges}"
 
 
-def dict_to_pretty_string(the_dict: dict[str, Any], indent=4) -> str:
+def dict_to_pretty_string(the_dict: Mapping[str, Any], indent=4) -> str:
     if not the_dict:
         return "{}"
 
