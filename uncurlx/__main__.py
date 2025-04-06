@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 import sys
+from typing import List
 
 try:
     from pyperclip import paste as clip_paste
 except ImportError:
 
-    def clip_paste() -> list[str]:
+    def clip_paste() -> List[str]:
         return list()
 
 

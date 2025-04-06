@@ -5,7 +5,7 @@ import re
 import shlex
 from collections import OrderedDict, namedtuple
 from http.cookies import SimpleCookie
-from typing import Any, Optional, Union
+from typing import Any, List, Mapping, Optional, Union
 
 parser = argparse.ArgumentParser()
 parser.add_argument("command")
@@ -61,11 +61,11 @@ def more_than_one_of(*args: Any) -> bool:
 
 
 def parse_headers(
-    headers: list[str],
+    headers: List[str],
     data_content_type: Optional[str],
     range: Optional[str],
     referer: Optional[str],
-) -> tuple[OrderedDict[str, str], OrderedDict[str, str]]:
+) -> tuple[Mapping[str, str], Mapping[str, str]]:
     """
     Parse headers from the curl command and return a dictionary of headers and cookies.
     :param headers: List of headers from the curl command.
@@ -100,7 +100,7 @@ def parse_headers(
     return quoted_headers, cookie_dict
 
 
-def parse_context(curl_command: Union[str, list[str]]) -> ParsedContext:
+def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
     """
     Parse a curl command and return a ParsedContext object.
     :param curl_command: The curl command to parse, either as a string or a list of strings.
@@ -184,7 +184,7 @@ def parse_proxy(proxy: Optional[str], proxy_user: Optional[str]) -> dict[str, st
     return proxies
 
 
-def parse(curl_command: Union[str, list[str]], **kargs) -> str:
+def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     parsed_context = parse_context(curl_command)
     client = "httpx"
     client_setup = ""
