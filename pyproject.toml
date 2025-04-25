@@ -40,10 +40,21 @@ Home = "https://github.com/whichoneiwonder/uncurl-x"
 
 [project.optional-dependencies]
 clip = ["pyperclip >=1.9, <2"]            # pyperclip requires xclip or similar on Linux
-test = ["httpx>=0.28, <1", "ruff >=0.11"]
 
 [project.scripts]
 uncurlx = "uncurlx.__main__:main"
 
-[tool.ruff.lint]
-extend-select = ["I", "C90"]
+
+[tool.ruff]
+line-length = 120
+lint.extend-select = ["I", "C90"]
+
+[tool.uv]
+
+
+[dependency-groups]
+dev = [
+    "httpbin>=0.10.2",
+    "httpx>=0.28, <1",
+    "ruff >=0.11"
+]

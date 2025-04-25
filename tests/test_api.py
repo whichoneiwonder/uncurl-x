@@ -1,30 +1,54 @@
-import unittest  # noqa # Hey! Do not delete this import for the tests to pass
+import unittest
+from dataclasses import dataclass
+from typing import Callable
+
+import httpbin
+import httpx
 
 import uncurlx
-
 
 OLD_ENDPOINT = "https://pypi.python.org/pypi/uncurlx"
 ENDPOINT = "https://httpbin.org/anything"
 
 
-class TestUncurlx(unittest.TestCase):
-    def test_basic_get(self):
-        output = uncurlx.parse(f"curl '{ENDPOINT}'")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+@dataclass
+class ExpectedConversion:
+    curl_cmd: str | tuple[str, dict[str, str]]
+    expected: str
+
+
+@dataclass
+class ParametrizedConversion:
+    name: str
+    curl_cmd: Callable[[str], str | tuple[str, dict[str, str]]]
+    expected: Callable[[str], str]
+
+    def with_endpoint(self, endpoint: str) -> ExpectedConversion:
+        return ExpectedConversion(
+            curl_cmd=self.curl_cmd(endpoint),
+            expected=self.expected(endpoint),
+        )
+
+
+TESTS = [
+    ParametrizedConversion(
+        name="basic_get",
+        curl_cmd=lambda endpoint: f"curl '{endpoint}'",
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={},
     cookies={},
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_colon_header(self):
-        output = uncurlx.parse(f"curl '{ENDPOINT}' -H 'authority:mobile.twitter.com'")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="colons_in_headers",
+        curl_cmd=lambda endpoint: f"curl '{endpoint}' -H 'authority:mobile.twitter.com'",
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={
         "authority": "mobile.twitter.com"
@@ -33,15 +57,13 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_basic_headers(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Accept-Language: en-US,en;q=0.8'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="basic_headers",
+        curl_cmd=lambda endpoint: f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Accept-Language: en-US,en;q=0.8'",
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={
         "Accept-Encoding": "gzip,deflate,sdch",
@@ -51,15 +73,13 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_cookies(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="cookies",
+        curl_cmd=lambda endpoint: f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'",
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={
         "Accept-Encoding": "gzip,deflate,sdch"
@@ -71,15 +91,13 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_cookies_lowercase(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'cookie: foo=bar; baz=baz2'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="test_cookies_lowercase",
+        curl_cmd=lambda endpoint: f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'cookie: foo=bar; baz=baz2'",
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={
         "Accept-Encoding": "gzip,deflate,sdch"
@@ -91,15 +109,13 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_cookies_dollar_sign(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H $'Cookie: somereallyreallylongcookie=true'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="cookies_with_dollar_sign",
+        curl_cmd=lambda endpoint: f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch' -H $'Cookie: somereallyreallylongcookie=true'",
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={
         "Accept-Encoding": "gzip,deflate,sdch"
@@ -110,16 +126,29 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_post(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
+        ),
+    ),
+    ParametrizedConversion(
+        name="simple_post",
+        curl_cmd=lambda endpoint: f"""curl '{endpoint}' -X POST""",
+        expected=lambda endpoint: (
+            """httpx.post("{}",""".format(endpoint)
+            + """
+    headers={},
+    cookies={},
+    auth=(),
+    proxy={},
+)"""
+        ),
+    ),
+    ParametrizedConversion(
+        name="post_with_data",
+        curl_cmd=lambda endpoint: (
+            f"""curl '{endpoint}'"""
             """ --data '[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
+        ),
+        expected=lambda endpoint: (
+            f"""httpx.post("{endpoint}","""
             + """
     data='[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]',
     headers={
@@ -133,16 +162,16 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_post_with_dict_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
+        ),
+    ),
+    ParametrizedConversion(
+        name="post_with_dict_data",
+        curl_cmd=lambda endpoint: (
+            f"""curl '{endpoint}'"""
             """ --data '{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"}}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
+        ),
+        expected=lambda endpoint: (
+            f"""httpx.post("{endpoint}","""
             + """
     data='{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"}}',
     headers={
@@ -156,16 +185,16 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_post_with_string_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}' """
+        ),
+    ),
+    ParametrizedConversion(
+        name="string post",
+        curl_cmd=lambda endpoint: (
+            f"""curl '{endpoint}' """
             """--data 'this is just some data'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
+        ),
+        expected=lambda endpoint: (
+            """httpx.post("{}",""".format(endpoint)
             + """
     data='this is just some data',
     headers={
@@ -175,16 +204,16 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_with_binary_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_binary_data",
+        curl_cmd=lambda endpoint: (
+            f"""curl '{endpoint}'"""
             """ --data-binary 'this is just some data'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
+        ),
+        expected=lambda endpoint: (
+            """httpx.post("{}",""".format(endpoint)
             + """
     data='this is just some data',
     headers={},
@@ -192,16 +221,16 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_with_raw_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_raw_data",
+        curl_cmd=lambda endpoint: (
+            f"""curl '{endpoint}'"""
             """ --data-raw 'this is just some data'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
+        ),
+        expected=lambda endpoint: (
+            """httpx.post("{}",""".format(endpoint)
             + """
     data='this is just some data',
     headers={},
@@ -209,16 +238,16 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_with_another_binary_data(self):
-        output = uncurlx.parse(
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_another_binary_data",
+        curl_cmd=lambda endpoint: (
             r"""curl -H 'PID: 20000079' -H 'MT: 4' -H 'DivideVersion: 1.0' -H 'SupPhone: Redmi Note 3' -H 'SupFirm: 5.0.2' -H 'IMEI: wx_app' -H 'IMSI: wx_app' -H 'SessionId: ' -H 'CUID: wx_app' -H 'ProtocolVersion: 1.0' -H 'Sign: 7876480679c3cfe9ec0f82da290f0e0e' -H 'Accept: /' -H 'BodyEncryptType: 0' -H 'User-Agent: Mozilla/5.0 (Linux; Android 6.0.1; OPPO R9s Build/MMB29M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/67.0.3396.87 Mobile Safari/537.36 hap/1.0/oppo com.nearme.instant.platform/2.1.0beta1 com.felink.quickapp.reader/1.0.3 ({"packageName":"com.oppo.market","type":"other","extra":{}})' -H 'Content-Type: text/plain; charset=utf-8' -H 'Host: pandahomeios.ifjing.com' --data-binary '{"CateID":"508","PageIndex":1,"PageSize":30}' --compressed"""
-            f""" '{ENDPOINT}/action.ashx/otheraction/9028'"""
-        )
-        expected = (
-            f"""httpx.post("{ENDPOINT}/action.ashx/otheraction/9028","""
+            f""" '{endpoint} /action.ashx/otheraction/9028'"""
+        ),
+        expected=lambda endpoint: (
+            f"""httpx.post("{endpoint} /action.ashx/otheraction/9028","""
             r"""
     data='{"CateID":"508","PageIndex":1,"PageSize":30}',
     headers={
@@ -243,13 +272,13 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_with_insecure_flag(self):
-        output = uncurlx.parse(f"""curl '{ENDPOINT}' --insecure""")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_insecure_flag",
+        curl_cmd=lambda endpoint: (f"""curl '{endpoint}' --insecure"""),
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={},
     cookies={},
@@ -257,17 +286,16 @@ class TestUncurlx(unittest.TestCase):
     proxy={},
     verify=False
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_with_request_kargs(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch'",
-            timeout=0.1,
-            allow_redirects=True,
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_request_kargs",
+        curl_cmd=lambda endpoint: (
+            f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch'",
+            dict(timeout=0.1, allow_redirects=True),
+        ),
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     allow_redirects=True,
     timeout=0.1,
@@ -278,14 +306,18 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch'",
-            timeout=0.1,
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_request_kargs2",
+        curl_cmd=lambda endpoint: (
+            f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch'",
+            dict(
+                timeout=0.1,
+            ),
+        ),
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     timeout=0.1,
     headers={
@@ -295,15 +327,13 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_with_escaped_newlines(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}' \\\n -H 'Accept-Encoding: gzip,deflate' \\\n --insecure"""
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_escaped_newlines",
+        curl_cmd=lambda endpoint: (f"""curl '{endpoint}' \\\n -H 'Accept-Encoding: gzip,deflate' \\\n --insecure"""),
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={
         "Accept-Encoding": "gzip,deflate"
@@ -313,15 +343,13 @@ class TestUncurlx(unittest.TestCase):
     proxy={},
     verify=False
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_escaped_unicode_in_cookie(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}' -H $'cookie: sid=00Dt00000004XYz\\u0021ARg' """
-        )
-        expected = (
-            f"""httpx.get("{ENDPOINT}","""
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_escaped_unicode_in_cookie",
+        curl_cmd=lambda endpoint: (f"""curl '{endpoint}' -H $'cookie: sid=00Dt00000004XYz\\u0021ARg' """),
+        expected=lambda endpoint: (
+            f"""httpx.get("{endpoint}","""
             """
     headers={},
     cookies={
@@ -330,18 +358,51 @@ class TestUncurlx(unittest.TestCase):
     auth=(),
     proxy={},
 )"""
-        )
-        self.assertEqual(output, expected)
-
-    def test_parse_curl_with_proxy_and_proxy_auth(self):
-        output = uncurlx.parse(f"curl '{ENDPOINT}' -U user: -x proxy.python.org:8080")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
+        ),
+    ),
+    ParametrizedConversion(
+        name="parse_curl_with_proxy_and_proxy_auth",
+        curl_cmd=lambda endpoint: (f"curl '{endpoint}' -U user: -x proxy.python.org:8080"),
+        expected=lambda endpoint: (
+            """httpx.get("{}",""".format(endpoint)
             + """
     headers={},
     cookies={},
     auth=(),
     proxy={'http': 'http://user:@proxy.python.org:8080/', 'https': 'http://user:@proxy.python.org:8080/'},
 )"""
-        )
-        self.assertEqual(output, expected)
+        ),
+    ),
+]
+
+
+class TestUncurlx(unittest.TestCase):
+    def setUp(self):
+        self.maxDiff = None
+        self.endpoint = ENDPOINT
+        self.old_endpoint = OLD_ENDPOINT
+
+    def test_parse(self):
+        for test in TESTS:
+            with self.subTest(test.name):
+                expectation = test.with_endpoint(self.endpoint)
+                self.run_conversion_case(expectation)
+                # self.run_compatability_case(expectation)
+
+    def run_conversion_case(self, expectation: ExpectedConversion, message: str | None = None):
+        if isinstance(expectation.curl_cmd, tuple):
+            curl_cmd, kwargs = expectation.curl_cmd
+            output = uncurlx.parse(curl_cmd, **kwargs)
+        else:
+            output = uncurlx.parse(expectation.curl_cmd)
+        self.assertMultiLineEqual(output, expectation.expected, message)
+
+    def run_compatability_case(self, expectation: ExpectedConversion, message: str | None = None):
+        output = uncurlx.parse(expectation.curl_cmd, endpoint=self.old_endpoint)
+        httpbin.app
+        wsgi_transport = httpx.WSGITransport(app=httpbin.app)
+        # TODO: Convert this to a test of the response via curl vs the response via httpx
+        with httpx.Client(transport=wsgi_transport) as client:
+            response = client.get(self.endpoint)
+            if response.status_code != 200:
+                raise RuntimeError(f"Failed to fetch {self.old_endpoint}", output)

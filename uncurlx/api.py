@@ -213,12 +213,11 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
 
     indent_count = 1
     indent = indent_count * BASE_INDENT
-    # auth_data = f'{BASE_INDENT}auth={parsed_context.auth}'
     auth_data = "{}auth={}".format(indent, parsed_context.auth)
     proxy_data = "\n{}proxy={}".format(indent, parsed_context.proxy)
     formatter = {
         "client_setup": client_setup,
-        "client": "httpx",
+        "client": client,
         "method": parsed_context.method,
         "url": parsed_context.url,
         "data_token": data_token,
