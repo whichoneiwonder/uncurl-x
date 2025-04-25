@@ -3,9 +3,14 @@ import argparse
 import json
 import re
 import shlex
+import types
+import typing
 from collections import OrderedDict, namedtuple
+from dataclasses import dataclass
 from http.cookies import SimpleCookie
 from typing import Any, List, Mapping, Optional, Tuple, Union
+
+import httpx
 
 parser = argparse.ArgumentParser()
 parser.add_argument("command")
@@ -118,9 +123,7 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
         parsed_args.form,
         parsed_args.json,
     ):
-        raise ValueError(
-            "You can only use one kind of -d/--data, -b/--data-binary, or -F/--form options at a time."
-        )
+        raise ValueError("You can only use one kind of -d/--data, -b/--data-binary, or -F/--form options at a time.")
     data_content_type = None
     post_data = parsed_args.data or parsed_args.data_binary or parsed_args.form
     json_data = None
@@ -221,12 +224,8 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
         "method": parsed_context.method,
         "url": parsed_context.url,
         "data_token": data_token,
-        "headers_token": "{}headers={}".format(
-            indent * indent_count, dict_to_pretty_string(parsed_context.headers)
-        ),
-        "cookies_token": "{}cookies={}".format(
-            indent * indent_count, dict_to_pretty_string(parsed_context.cookies)
-        ),
+        "headers_token": "{}headers={}".format(indent * indent_count, dict_to_pretty_string(parsed_context.headers)),
+        "cookies_token": "{}cookies={}".format(indent * indent_count, dict_to_pretty_string(parsed_context.cookies)),
         "security_token": verify_token,
         "requests_kargs": requests_kargs,
         "auth": auth_data,
@@ -238,6 +237,71 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
 {cookies_token},
 {auth},{proxies},{security_token}
 )""".format(**formatter).strip()
+
+
+@dataclass
+class StructuredRequest:
+    # TODO: Use this class to create a structured request object
+
+    url: str
+    client_setup: str | None = None
+    client: types.ModuleType | str = httpx
+    method_func: typing.Callable | str = httpx.get
+    data: str | None = None
+    json: str | None = None
+    headers: Mapping[str, str] | None = None
+    cookies: Mapping[str, str] | None = None
+    verify: bool = True
+    auth: Tuple[str, str] | None = None
+    proxy: Mapping[str, str] | None = None
+    unix_socket: str | None = None
+    requests_kargs: str | None = None
+
+    def render(self) -> str:
+        """
+        Render the StructuredRequest to a string.
+        """
+        client_setup = (self.client_setup.rstrip() + "\n") if self.client_setup else ""
+        data_token = f"{BASE_INDENT}data={self.data!r}," if self.data else ""
+        json_token = f"{BASE_INDENT}json={self.json!r}," if self.json else ""
+        headers_token = f"{BASE_INDENT}headers={dict_to_pretty_string(self.headers)}," if self.headers else ""
+        cookies_token = f"{BASE_INDENT}cookies={dict_to_pretty_string(self.cookies)}," if self.cookies else ""
+        verify_token = "\n{}verify=False".format(BASE_INDENT) if not self.verify else ""
+        auth_data = f"{BASE_INDENT}auth={self.auth!r}," if self.auth else ""
+        proxy_data = f"\n{BASE_INDENT}proxies={self.proxy!r}," if self.proxy else ""
+        unix_socket_data = (
+            f"\n{BASE_INDENT}transport=httpx.HttpTransport(uds={self.unix_socket!r})," if self.unix_socket else ""
+        )
+        requests_kargs = self.requests_kargs if self.requests_kargs else ""
+
+        return f"""{client_setup}{self.client}.{self.method_func}("{self.url}",
+{requests_kargs}{data_token}{json_token}{headers_token}{cookies_token}{auth_data}{proxy_data}{unix_socket_data}{verify_token}
+)""".strip()
+
+    def __str__(self) -> str:
+        return self.render()
+
+    def run(self) -> Any:
+        """
+        Execute the request using the httpx client.
+        """
+        client = self.client
+        if self.client_setup:
+            exec(self.client_setup, globals())
+            client = eval(self.client.__name__)
+        method_func = getattr(client, self.method_func) if isinstance(self.method_func, str) else self.method_func
+        kwargs = {
+            "url": self.url,
+            "data": self.data,
+            "json": self.json,
+            "headers": self.headers,
+            "cookies": self.cookies,
+            "verify": self.verify,
+            "auth": self.auth,
+            "proxies": self.proxy,
+            "transport": httpx.HTTPTransport(uds=self.unix_socket) if self.unix_socket else None,
+        }
+        return method_func(**{k: v for k, v in kwargs.items() if v is not None})
 
 
 def parse_curl_range(range_str: str) -> str:
@@ -259,7 +323,5 @@ def dict_to_pretty_string(the_dict: Mapping[str, Any], indent=4) -> str:
         return "{}"
 
     return ("\n" + " " * indent).join(
-        json.dumps(
-            the_dict, sort_keys=True, indent=indent, separators=(",", ": ")
-        ).splitlines()
+        json.dumps(the_dict, sort_keys=True, indent=indent, separators=(",", ": ")).splitlines()
     )
