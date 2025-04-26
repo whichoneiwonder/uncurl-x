@@ -1,17 +1,20 @@
 import contextlib
 import pathlib
-import tempfile
 import unittest
-import subprocess
 
-import os
-
-from flask import json
 import httpbin
 import httpx
+from flask import json
 
 import uncurlx
-from tests.constants import ENDPOINT, OLD_ENDPOINT, TESTS, ExpectedConversion,ParametrizedConversion
+from tests.constants import (
+    ENDPOINT,
+    LOCAL_ENDPOINT,
+    OLD_ENDPOINT,
+    TESTS,
+    ExpectedConversion,
+)
+
 
 class TestUncurlx(unittest.TestCase):
     def setUp(self):
@@ -37,35 +40,53 @@ class TestUncurlx(unittest.TestCase):
 class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
     def setUp(self):
         self.stack = contextlib.ExitStack()
-        self.tempdir_path = pathlib.Path(self.stack.enter_context(tempfile.TemporaryDirectory()))
-        self.socket = self.tempdir_path / "uncurlx-httpbin.sock"
-        self.endpoint = f"unix:/{self.socket.resolve()}"
-        # Start the httpbin server
-        self.stack.enter_context(subprocess.Popen(
-            [
-                "python3",
-                "-m",
-                "httpbin.core",
-                "--host",
-                str(self.endpoint),
-            ],
-        ))
+        self.app = httpbin.app
+        self.endpoint = LOCAL_ENDPOINT
         super().setUp()
 
     def tearDown(self):
         self.stack.close()
         return super().tearDown()
 
+    def assertEquivalentHttpBinResponse(
+        self, *, httpx_response: dict, example_curl_response: dict, message: str | None = None
+    ):
+        """
+        Compare two httpbin responses to see if they are equivalent.
+        """
+        httpx_headers: dict[str, str] = httpx_response.get("headers", {})
+        example_curl_headers: dict[str, str] = example_curl_response.get("headers", {})
+        # Remove the headers that are not relevant to the test
+        if "Accept-Encoding" in httpx_headers and "Accept-Encoding" not in example_curl_headers:
+            del httpx_headers["Accept-Encoding"]
+        if httpx_headers.get("Connection") == "keep-alive" and "Connection" not in example_curl_headers:
+            # Remove the connection header if it is not in the example curl response
+            del httpx_headers["Connection"]
+        if httpx_headers.get("User-Agent", "").startswith("python-httpx/") and example_curl_headers.get(
+            "User-Agent", ""
+        ).startswith("curl/"):
+            # Remove the user agent header if it is not in the example curl response
+            del httpx_headers["User-Agent"]
+            del example_curl_headers["User-Agent"]
+        self.assertDictEqual(httpx_response, example_curl_response, message)
+
     def test_parse(self):
-        output_path = self.tempdir_path / "output.json"
-        curl_cmd = f"curl -X GET '{self.endpoint}' -o {output_path.resolve()}"
-        curl_result = subprocess.check_output(['sh','-c', curl_cmd], shell=True)
-        curl_json = json.loads(output_path.read_text())
+        # output_path = self.tempdir_path / "output.json"
+        # curl_cmd = f"curl -X GET '{self.endpoint}' -o {output_path.resolve()}"
+        # curl_result = subprocess.check_output(['sh','-c', curl_cmd])
+        name = "basic_get"
+        curl_json = json.loads(pathlib.Path(__file__).parent.joinpath("data", f"{name}.json").read_text())
+        wsgi_transport = httpx.WSGITransport(app=self.app)
+        httpx_client = httpx.Client(transport=wsgi_transport)
+
         # httpx_result = uncurlx.parse(curl_cmd).
-        httpx_result = httpx.get(self.endpoint)
+        httpx_result = httpx_client.get(self.endpoint)
         httpx_json = httpx_result.json()
-        self.assertDictEqual(httpx_json, curl_json)
-        
+        self.assertEquivalentHttpBinResponse(
+            httpx_response=httpx_json,
+            example_curl_response=curl_json,
+        )
+
     # def run_compatability_case(self, expectation: ExpectedConversion, message: str | None = None):
 
     # def _run_python_compatability_case(self, expectation: ExpectedConversion, message: str | None = None):

@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Callable
 
-
 OLD_ENDPOINT = "https://pypi.python.org/pypi/uncurlx"
 ENDPOINT = "https://httpbin.org/anything"
+LOCAL_ENDPOINT = "http://localhost:8000/anything"
 
 
 @dataclass
