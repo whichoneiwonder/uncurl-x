@@ -208,7 +208,7 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
         data_token = "{}json={},".format(BASE_INDENT, parsed_context.json)
     verify_token = ""
     if parsed_context.verify:
-        verify_token = "\n{}verify=False".format(BASE_INDENT)
+        verify_token = ",\n{}verify=False".format(BASE_INDENT)
 
     requests_kargs = ""
     for k, v in sorted(kargs.items()):
@@ -216,8 +216,8 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
 
     indent_count = 1
     indent = indent_count * BASE_INDENT
-    auth_data = "{}auth={}".format(indent, parsed_context.auth)
-    proxy_data = "\n{}proxy={}".format(indent, parsed_context.proxy)
+    auth_data = ",\n{}auth={}".format(indent, parsed_context.auth) if parsed_context.auth else ""
+    proxy_data = ",\n{}proxy={}".format(indent, parsed_context.proxy) if parsed_context.proxy else ""
     formatter = {
         "client_setup": client_setup,
         "client": client,
@@ -234,8 +234,7 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
 
     return """{client_setup}{client}.{method}("{url}",
 {requests_kargs}{data_token}{headers_token},
-{cookies_token},
-{auth},{proxies},{security_token}
+{cookies_token}{auth}{proxies}{security_token},
 )""".format(**formatter).strip()
 
 
@@ -255,7 +254,7 @@ class StructuredRequest:
     auth: Tuple[str, str] | None = None
     proxy: Mapping[str, str] | None = None
     unix_socket: str | None = None
-    requests_kargs: str | None = None
+    requests_kargs: dict[str, object] | None = None
 
     def render(self) -> str:
         """

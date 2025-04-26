@@ -36,8 +36,6 @@ TESTS = [
             + """
     headers={},
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -51,8 +49,6 @@ TESTS = [
         "authority": "mobile.twitter.com"
     },
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -67,8 +63,6 @@ TESTS = [
         "Accept-Language": "en-US,en;q=0.8"
     },
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -85,8 +79,6 @@ TESTS = [
         "baz": "baz2",
         "foo": "bar"
     },
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -103,8 +95,6 @@ TESTS = [
         "baz": "baz2",
         "foo": "bar"
     },
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -120,8 +110,6 @@ TESTS = [
     cookies={
         "somereallyreallylongcookie": "true"
     },
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -133,8 +121,6 @@ TESTS = [
             + """
     headers={},
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -156,8 +142,6 @@ TESTS = [
         "baz": "baz2",
         "foo": "bar"
     },
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -179,8 +163,6 @@ TESTS = [
         "baz": "baz2",
         "foo": "bar"
     },
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -198,8 +180,6 @@ TESTS = [
         "Content-Type": "application/x-www-form-urlencoded"
     },
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -215,8 +195,6 @@ TESTS = [
     data='this is just some data',
     headers={},
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -232,8 +210,6 @@ TESTS = [
     data='this is just some data',
     headers={},
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -266,8 +242,6 @@ TESTS = [
         "User-Agent": "Mozilla/5.0 (Linux; Android 6.0.1; OPPO R9s Build/MMB29M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/67.0.3396.87 Mobile Safari/537.36 hap/1.0/oppo com.nearme.instant.platform/2.1.0beta1 com.felink.quickapp.reader/1.0.3 ({\"packageName\":\"com.oppo.market\",\"type\":\"other\",\"extra\":{}})"
     },
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -279,9 +253,7 @@ TESTS = [
             + """
     headers={},
     cookies={},
-    auth=(),
-    proxy={},
-    verify=False
+    verify=False,
 )"""
         ),
     ),
@@ -300,8 +272,6 @@ TESTS = [
         "Accept-Encoding": "gzip,deflate,sdch"
     },
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -321,8 +291,6 @@ TESTS = [
         "Accept-Encoding": "gzip,deflate,sdch"
     },
     cookies={},
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -336,9 +304,7 @@ TESTS = [
         "Accept-Encoding": "gzip,deflate"
     },
     cookies={},
-    auth=(),
-    proxy={},
-    verify=False
+    verify=False,
 )"""
         ),
     ),
@@ -352,8 +318,6 @@ TESTS = [
     cookies={
         "sid": "00Dt00000004XYz!ARg"
     },
-    auth=(),
-    proxy={},
 )"""
         ),
     ),
@@ -365,7 +329,6 @@ TESTS = [
             + """
     headers={},
     cookies={},
-    auth=(),
     proxy={'http': 'http://user:@proxy.python.org:8080/', 'https': 'http://user:@proxy.python.org:8080/'},
 )"""
         ),
