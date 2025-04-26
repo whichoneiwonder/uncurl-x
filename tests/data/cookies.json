@@ -1,0 +1,1 @@
+{"args":{},"data":"","files":{},"form":{},"headers":{"Accept":"*/*","Accept-Encoding":"gzip,deflate,sdch","Cookie":"foo=bar; baz=baz2","Host":"localhost:8000","User-Agent":"curl/8.5.0"},"json":null,"method":"GET","origin":"127.0.0.1","url":"http://localhost:8000/anything"}

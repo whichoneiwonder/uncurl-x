@@ -1,0 +1,1 @@
+{"args":{},"data":"","files":{},"form":{"this is just some data":""},"headers":{"Accept":"*/*","Content-Length":"22","Content-Type":"application/x-www-form-urlencoded","Host":"localhost:8000","User-Agent":"curl/8.5.0"},"json":null,"method":"POST","origin":"127.0.0.1","url":"http://localhost:8000/anything"}
