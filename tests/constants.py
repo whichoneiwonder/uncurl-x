@@ -76,8 +76,8 @@ TESTS = [
         "Accept-Encoding": "gzip,deflate,sdch"
     },
     cookies={
-        "baz": "baz2",
         "foo": "bar"
+        "baz": "baz2",
     },
 )"""
         ),
@@ -133,7 +133,7 @@ TESTS = [
         expected=lambda endpoint: (
             f"""httpx.post("{endpoint}","""
             + """
-    data='[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]',
+    content='[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]',
     headers={
         "Accept-Encoding": "gzip,deflate,sdch",
         "Content-Type": "application/x-www-form-urlencoded"
@@ -154,7 +154,7 @@ TESTS = [
         expected=lambda endpoint: (
             f"""httpx.post("{endpoint}","""
             + """
-    data='{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"}}',
+    content='{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"}}',
     headers={
         "Accept-Encoding": "gzip,deflate,sdch",
         "Content-Type": "application/x-www-form-urlencoded"
@@ -175,7 +175,7 @@ TESTS = [
         expected=lambda endpoint: (
             """httpx.post("{}",""".format(endpoint)
             + """
-    data='this is just some data',
+    content='this is just some data',
     headers={
         "Content-Type": "application/x-www-form-urlencoded"
     },
@@ -192,7 +192,7 @@ TESTS = [
         expected=lambda endpoint: (
             """httpx.post("{}",""".format(endpoint)
             + """
-    data='this is just some data',
+    content='this is just some data',
     headers={},
     cookies={},
 )"""
@@ -207,7 +207,7 @@ TESTS = [
         expected=lambda endpoint: (
             """httpx.post("{}",""".format(endpoint)
             + """
-    data='this is just some data',
+    content='this is just some data',
     headers={},
     cookies={},
 )"""
@@ -222,7 +222,7 @@ TESTS = [
         expected=lambda endpoint: (
             f"""httpx.post("{endpoint} /action.ashx/otheraction/9028","""
             r"""
-    data='{"CateID":"508","PageIndex":1,"PageSize":30}',
+    content='{"CateID":"508","PageIndex":1,"PageSize":30}',
     headers={
         "Accept": "/",
         "BodyEncryptType": "0",

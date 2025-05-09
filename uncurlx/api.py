@@ -9,14 +9,16 @@ from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
 from http.cookies import SimpleCookie
 from typing import Any, List, Mapping, Optional, Tuple, Union
+from urllib.parse import urlencode
 
 import httpx
 
 parser = argparse.ArgumentParser()
 parser.add_argument("command")
 parser.add_argument("url", default=None)
-parser.add_argument("-d", "--data")
-parser.add_argument("-b", "--data-binary", "--data-raw", default=None)
+parser.add_argument("-d", "--data", action="append", default=[])
+parser.add_argument("--data-binary", "--data-raw", default=None)
+parser.add_argument("--data-urlencode", default=[], action="append")
 parser.add_argument("-X", "--request", default="")
 parser.add_argument("-H", "--header", action="append", default=[])
 parser.add_argument("--compressed", action="store_true")
@@ -42,7 +44,9 @@ ParsedContext = namedtuple(
     [
         "method",
         "url",
-        "data",
+        "content",
+        "params",
+        "form_data",
         "headers",
         "cookies",
         "verify",
@@ -63,7 +67,6 @@ def more_than_one_of(*args: Any) -> bool:
     Check if more than one of the arguments is set to True.
     """
     return sum(bool(arg) for arg in args) > 1
-
 
 def parse_headers(
     headers: List[str],
@@ -118,21 +121,25 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
     else:
         parsed_args = parser.parse_args(curl_command)
     if more_than_one_of(
-        parsed_args.data,
+        parsed_args.data or parsed_args.data_urlencode,
         parsed_args.data_binary,
         parsed_args.form,
         parsed_args.json,
     ):
         raise ValueError("You can only use one kind of -d/--data, -b/--data-binary, or -F/--form options at a time.")
     data_content_type = None
-    post_data = parsed_args.data or parsed_args.data_binary or parsed_args.form
+    raw_data = parsed_args.data_binary
+    params = [*parsed_args.data, * parsed_args.data_urlencode]
+    form_data = parsed_args.form
     json_data = None
     if parsed_args.form:
         data_content_type = "multipart/form-data"
-    # elif parsed_args.data_binary:
-    #     pass
-    elif parsed_args.data:
+    elif params:
         data_content_type = "application/x-www-form-urlencoded"
+        if parsed_args.data_urlencode:
+            raw_data = urlencode(parsed_args.data_urlencode)
+    elif parsed_args.data_binary:
+        pass
     elif parsed_args.json:
         try:
             json_data = repr(json.loads(parsed_args.json))
@@ -141,8 +148,7 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
                 "Invalid JSON format. Please provide a valid JSON string.",
                 parsed_args.json,
             ) from jde
-
-    if post_data or json_data:
+    if raw_data or json_data or params:
         method = "post"
 
     if parsed_args.request:
@@ -166,7 +172,9 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
     return ParsedContext(
         method=method,
         url=parsed_args.url or parsed_args.explicit_url,
-        data=post_data,
+        content=raw_data,
+        params=params,
+        form_data=form_data,
         headers=quoted_headers,
         cookies=cookie_dict,
         verify=parsed_args.insecure,
@@ -202,10 +210,15 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
         client = "client"
         client_setup = f'{client} = httpx.Client(transport=httpx.HttpTransport(uds="{parsed_context.unix_socket}"))\n'
     data_token = ""
-    if parsed_context.data:
-        data_token = "{}data='{}',\n".format(BASE_INDENT, parsed_context.data)
+    if parsed_context.content:
+        data_token = "{}content='{}',\n".format(BASE_INDENT, parsed_context.content)
+    if parsed_context.form_data:
+        data_token = "{}data='{}',\n".format(BASE_INDENT, parsed_context.form_data)
     if parsed_context.json:
-        data_token = "{}json={},".format(BASE_INDENT, parsed_context.json)
+        data_token = "{}json={},\n".format(BASE_INDENT, parsed_context.json)
+    if parsed_context.params:
+        data_token = "{}params={},\n".format(BASE_INDENT, parsed_context.params)
+
     verify_token = ""
     if parsed_context.verify:
         verify_token = ",\n{}verify=False".format(BASE_INDENT)
@@ -246,7 +259,8 @@ class StructuredRequest:
     client_setup: str | None = None
     client: types.ModuleType | str = httpx
     method_func: typing.Callable | str = httpx.get
-    data: str | None = None
+    content: str | None = None
+    form: str | None = None
     json: str | None = None
     headers: Mapping[str, str] | None = None
     cookies: Mapping[str, str] | None = None
@@ -261,7 +275,7 @@ class StructuredRequest:
         Render the StructuredRequest to a string.
         """
         client_setup = (self.client_setup.rstrip() + "\n") if self.client_setup else ""
-        data_token = f"{BASE_INDENT}data={self.data!r}," if self.data else ""
+        data_token = f"{BASE_INDENT}content={self.content!r}," if self.content else f"{BASE_INDENT}form={self.form!r}," if self.form else ""
         json_token = f"{BASE_INDENT}json={self.json!r}," if self.json else ""
         headers_token = f"{BASE_INDENT}headers={dict_to_pretty_string(self.headers)}," if self.headers else ""
         cookies_token = f"{BASE_INDENT}cookies={dict_to_pretty_string(self.cookies)}," if self.cookies else ""

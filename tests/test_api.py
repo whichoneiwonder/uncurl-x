@@ -1,8 +1,13 @@
 import contextlib
+from http.cookies import SimpleCookie
 import pathlib
 import unittest
 
-import httpbin
+try:
+    import httpbin
+except ImportError:
+    httpbin = None
+
 import httpx
 from flask import json
 
@@ -40,6 +45,9 @@ class TestUncurlx(unittest.TestCase):
 
 class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
     def setUp(self):
+        if not httpbin:
+            self.skipTest("httpbin not installed")
+
         self.stack = contextlib.ExitStack()
         self.app = httpbin.app
         self.endpoint = LOCAL_ENDPOINT
@@ -69,6 +77,14 @@ class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
             # Remove the user agent header if it is not in the example curl response
             del httpx_headers["User-Agent"]
             del example_curl_headers["User-Agent"]
+        if "Content-Length" in httpx_headers and "Content-Length" not in example_curl_headers:
+            if httpx_headers["Content-Length"] == '0':
+                del httpx_headers["Content-Length"]
+        if cookies := httpx_headers.get("Cookie"):
+            httpx_headers["Cookie"] = dict(sorted(SimpleCookie(cookies).items()))
+            
+        if curl_cookies := example_curl_headers.get("Cookie"):
+            example_curl_headers["Cookie"] = dict(sorted(SimpleCookie(curl_cookies).items()))
         self.assertDictEqual(httpx_response, example_curl_response, message)
 
     def test_parse(self):
@@ -106,8 +122,7 @@ class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
         if not (curl_json := self._get_precomputed_curl_data(parametrization)):
             self.skipTest(f"Missing data for {parametrization.name}")
         output = uncurlx.parse(expectation.curl_cmd)
-        httpbin.app
-        wsgi_transport = httpx.WSGITransport(app=httpbin.app)
+        wsgi_transport = httpx.WSGITransport(app=self.app)
         # TODO: Convert this to a test of the response via curl vs the response via httpx
         with httpx.Client(transport=wsgi_transport) as client:
             httpx_result: httpx.Response = httpx.Response(999)

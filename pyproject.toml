@@ -55,6 +55,6 @@ lint.extend-select = ["I", "C90"]
 [dependency-groups]
 dev = [
     "httpbin>=0.10.2",
-    "httpx>=0.28, <1",
+    "httpx[cli]>=0.28, <1",
     "ruff >=0.11"
 ]
