@@ -1,7 +1,9 @@
 import contextlib
-from http.cookies import SimpleCookie
 import pathlib
 import unittest
+from urllib.parse import quote_plus
+import warnings
+from http.cookies import SimpleCookie
 
 try:
     import httpbin
@@ -32,7 +34,7 @@ class TestUncurlx(unittest.TestCase):
         for test in TESTS:
             with self.subTest(test.name):
                 expectation = test.with_endpoint(self.endpoint)
-                self.run_conversion_case(expectation)
+                self.run_conversion_case(expectation, f'failed to parse test: {test.name}')
 
     def run_conversion_case(self, expectation: ExpectedConversion, message: str | None = None):
         if isinstance(expectation.curl_cmd, tuple):
@@ -51,6 +53,7 @@ class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
         self.stack = contextlib.ExitStack()
         self.app = httpbin.app
         self.endpoint = LOCAL_ENDPOINT
+        self.maxDiff = None
         super().setUp()
 
     def tearDown(self):
@@ -78,11 +81,11 @@ class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
             del httpx_headers["User-Agent"]
             del example_curl_headers["User-Agent"]
         if "Content-Length" in httpx_headers and "Content-Length" not in example_curl_headers:
-            if httpx_headers["Content-Length"] == '0':
+            if httpx_headers["Content-Length"] == "0":
                 del httpx_headers["Content-Length"]
         if cookies := httpx_headers.get("Cookie"):
             httpx_headers["Cookie"] = dict(sorted(SimpleCookie(cookies).items()))
-            
+
         if curl_cookies := example_curl_headers.get("Cookie"):
             example_curl_headers["Cookie"] = dict(sorted(SimpleCookie(curl_cookies).items()))
         self.assertDictEqual(httpx_response, example_curl_response, message)
@@ -101,14 +104,16 @@ class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
         self.assertEquivalentHttpBinResponse(
             httpx_response=httpx_result.json(),
             example_curl_response=curl_json,
+            message=f'Failed to parse {name}',
         )
+
     def test_parse_compatability(self):
         for test in TESTS:
             with self.subTest(test.name):
-                self.run_compatability_case(test)
+                self.run_compatability_case(test, test.name)
 
     # def run_compatability_case(self, expectation: ExpectedConversion, message: str | None = None):
-    def _get_precomputed_curl_data(self, param: ParametrizedConversion) -> dict|None:
+    def _get_precomputed_curl_data(self, param: ParametrizedConversion) -> dict | None:
         json_file = pathlib.Path(__file__).parent.joinpath("data", f"{param.name}.json")
         if json_file.exists():
             return json.loads(json_file.read_text())
@@ -127,8 +132,12 @@ class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
         with httpx.Client(transport=wsgi_transport) as client:
             httpx_result: httpx.Response = httpx.Response(999)
             try:
-                temp_locals = {**locals(), "httpx": client, }
-                exec(f'httpx_result = ({output})', globals(), temp_locals)
+                temp_locals = {
+                    **locals(),
+                    "httpx": client,
+                }
+                with warnings.catch_warnings(action="ignore", category=DeprecationWarning):
+                    exec(f"httpx_result = ({output})", globals(), temp_locals)
                 httpx_result = temp_locals["httpx_result"]
             except SyntaxError as e:
                 raise RuntimeError("invalid output", output) from e
@@ -137,6 +146,8 @@ class TestUncurlxAgainstCurlWithHttpbin(unittest.TestCase):
         self.assertEquivalentHttpBinResponse(
             httpx_response=httpx_result.json(),
             example_curl_response=curl_json,
+            message=f'Failed comparison for testcase: {message}',
+
         )
 
     def run_curl(self, curl_cmd: str) -> str:

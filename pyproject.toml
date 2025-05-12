@@ -56,5 +56,9 @@ lint.extend-select = ["I", "C90"]
 dev = [
     "httpbin>=0.10.2",
     "httpx[cli]>=0.28, <1",
-    "ruff >=0.11"
+    "ruff >=0.11",
+    "pytest",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

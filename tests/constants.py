@@ -76,8 +76,8 @@ TESTS = [
         "Accept-Encoding": "gzip,deflate,sdch"
     },
     cookies={
-        "foo": "bar"
         "baz": "baz2",
+        "foo": "bar"
     },
 )"""
         ),
@@ -100,7 +100,7 @@ TESTS = [
     ),
     ParametrizedConversion(
         name="cookies_with_dollar_sign",
-        curl_cmd=lambda endpoint: f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch' -H $'Cookie: somereallyreallylongcookie=true'",
+        curl_cmd=lambda endpoint: f"curl '{endpoint}' -H 'Accept-Encoding: gzip,deflate,sdch' -H \\$'Cookie: somereallyreallylongcookie=true'",
         expected=lambda endpoint: (
             """httpx.get("{}",""".format(endpoint)
             + """
@@ -127,8 +127,8 @@ TESTS = [
     ParametrizedConversion(
         name="post_with_data",
         curl_cmd=lambda endpoint: (
-            f"""curl '{endpoint}'"""
-            """ --data '[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"""
+            f"""curl '{endpoint}' -H "Content-Type: application/json" """
+            """ --data-binary '[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"""
         ),
         expected=lambda endpoint: (
             f"""httpx.post("{endpoint}","""
@@ -136,7 +136,7 @@ TESTS = [
     content='[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]',
     headers={
         "Accept-Encoding": "gzip,deflate,sdch",
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/json"
     },
     cookies={
         "baz": "baz2",
@@ -154,7 +154,7 @@ TESTS = [
         expected=lambda endpoint: (
             f"""httpx.post("{endpoint}","""
             + """
-    content='{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"}}',
+    content='%7B%22evt%22%3A%22newsletter.show%22%2C%22properties%22%3A%7B%22newsletter_type%22%3A%22userprofile%22%7D%7D',
     headers={
         "Accept-Encoding": "gzip,deflate,sdch",
         "Content-Type": "application/x-www-form-urlencoded"
@@ -170,7 +170,7 @@ TESTS = [
         name="string post",
         curl_cmd=lambda endpoint: (
             f"""curl '{endpoint}' """
-            """--data 'this is just some data'"""
+            """--data-urlencode 'this is just some data'"""
         ),
         expected=lambda endpoint: (
             """httpx.post("{}",""".format(endpoint)
@@ -193,7 +193,9 @@ TESTS = [
             """httpx.post("{}",""".format(endpoint)
             + """
     content='this is just some data',
-    headers={},
+    headers={
+        "Content-Type": "application/x-www-form-urlencoded"
+    },
     cookies={},
 )"""
         ),
@@ -208,7 +210,9 @@ TESTS = [
             """httpx.post("{}",""".format(endpoint)
             + """
     content='this is just some data',
-    headers={},
+    headers={
+        "Content-Type": "application/x-www-form-urlencoded"
+    },
     cookies={},
 )"""
         ),
@@ -310,7 +314,7 @@ TESTS = [
     ),
     ParametrizedConversion(
         name="parse_curl_escaped_unicode_in_cookie",
-        curl_cmd=lambda endpoint: (f"""curl '{endpoint}' -H $'cookie: sid=00Dt00000004XYz\\u0021ARg' """),
+        curl_cmd=lambda endpoint: (f"""curl '{endpoint}' -H \\$'cookie: sid=00Dt00000004XYz\\u0021ARg' """),
         expected=lambda endpoint: (
             f"""httpx.get("{endpoint}","""
             """
