@@ -64,7 +64,7 @@ dev = [
 testpaths = ["tests"]
 
 [tool.bumpversion]
-current_version = "0.0.13b2"
+current_version = "0.0.13b3"
 commit = true
 tag = true
 tag_name = "{new_version}"
