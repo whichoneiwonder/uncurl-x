@@ -39,7 +39,7 @@ jobs:
       run: |
         python -m pip install . --group dev
     - name: Run tests
-      run: python -m unittest discover tests/ && echo tests ok
+      run: python -m pytest/ && echo tests ok
   
   old-python-test:
     permissions:
@@ -53,9 +53,9 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install .[test]
+        python -m pip install . --group dev
     - name: Run tests
-      run: python -m unittest discover tests/ && echo tests ok
+      run: python -m pytest && echo tests ok
   
     strategy:
       matrix:
