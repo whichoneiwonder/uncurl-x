@@ -130,7 +130,7 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
     ):
         raise ValueError("You can only use one kind of -d/--data, -b/--data-binary, or -F/--form options at a time.")
     data_content_type = None
-    raw_data = parsed_args.data_binary or "&".join([*map( quote_plus, parsed_args.data), *parsed_args.data_urlencode])
+    raw_data = parsed_args.data_binary or "&".join([*map(quote_plus, parsed_args.data), *parsed_args.data_urlencode])
     form_data = parsed_args.form
     json_data = None
     data_content_type = None
