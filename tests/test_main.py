@@ -1,5 +1,4 @@
 import shlex
-from unittest import TestCase
 from unittest.mock import patch
 
 import pytest
@@ -15,10 +14,12 @@ def fake_sys():
     with patch(sys_module) as mock_sys:
         yield mock_sys
 
+
 @pytest.fixture
 def printer():
     with patch(print_module) as mock_printer:
         yield mock_printer
+
 
 def test_main_method(printer, fake_sys):
     fake_sys.argv = [
@@ -38,4 +39,4 @@ httpx.get("https://pypi.python.org/pypi/uncurlx",
     },
     cookies={},
 )"""
-        )
+    )

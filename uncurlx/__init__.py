@@ -10,6 +10,7 @@ This tool is a fork of [`uncurl`](https://github.com/spulec/uncurl) by `spulec` 
 """
 
 from .api import parse, parse_context
+from .ast_api import parse as parse_via_ast
 
 __version__ = "0.0.13b2"
-__all__ = [parse, parse_context]
+__all__ = [parse, parse_context, parse_via_ast]

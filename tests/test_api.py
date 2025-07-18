@@ -1,3 +1,4 @@
+import ast
 import pathlib
 import warnings
 from http.cookies import SimpleCookie
@@ -111,6 +112,19 @@ def test_parse_compatibility(test: ParametrizedConversion, httpx_client, endpoin
         example_curl_response=curl_json,
         message=f"Failed comparison for testcase: {test.name}",
     )
+
+
+@pytest.mark.parametrize("test", TESTS)
+def test_parse_ast_compare(test: ParametrizedConversion, httpx_client, endpoint):
+    expectation = test.with_endpoint(endpoint)
+    # if isinstance(expectation.curl_cmd, tuple):
+    #     pytest.skip("Not implemented")
+    # curl_json = _get_precomputed_curl_data(test)
+    # if not curl_json:
+    #     pytest.skip(f"Missing data for {test.name}")
+    manual_output = ast.unparse(ast.parse(uncurlx.parse(expectation.curl_cmd)))
+    ast_output = uncurlx.ast_api.parse(expectation.curl_cmd)
+    assert ast_output == manual_output, f"AST output does not match manual output for {test.name}"
 
 
 def _get_precomputed_curl_data(param):

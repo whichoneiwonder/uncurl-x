@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 import argparse
+from dataclasses import dataclass
 import json
 import re
 import shlex
-import types
-import typing
 from collections import OrderedDict, namedtuple
-from dataclasses import dataclass
 from http.cookies import SimpleCookie
+import types
 from typing import Any, List, Mapping, Optional, Tuple, Union
+import typing
 from urllib.parse import quote_plus
 
 import httpx
@@ -95,9 +95,9 @@ def parse_headers(
 
         if header_key.lower().strip("$") == "cookie":
             cookie = SimpleCookie(bytes(header_value, "ascii").decode("unicode-escape"))
-            for key in cookie:
-                cookie_dict.update({key: cookie[key].value})
-
+            # for key in cookie:
+            # cookie_dict.update({key: cookie[key].value})
+            cookie_dict = dict(sorted([(key, value.value) for key, value in cookie.items()]))
         else:
             quoted_headers[header_key] = header_value.strip()
     if data_content_type and "Content-Type" not in quoted_headers:
@@ -175,7 +175,7 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
         form_data=form_data,
         headers=quoted_headers,
         cookies=cookie_dict,
-        verify=parsed_args.insecure,
+        verify=not parsed_args.insecure,
         auth=user,
         proxy=proxies,
         unix_socket=parsed_args.unix_socket,
@@ -217,40 +217,39 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     if parsed_context.params:
         data_token = "{}params={},\n".format(BASE_INDENT, parsed_context.params)
 
-    verify_token = ""
-    if parsed_context.verify:
-        verify_token = ",\n{}verify=False".format(BASE_INDENT)
+    verify_token = "{}verify=False,\n".format(BASE_INDENT) if not parsed_context.verify else ""
 
-    requests_kargs = ""
-    for k, v in sorted(kargs.items()):
-        requests_kargs += "{}{}={},\n".format(BASE_INDENT, k, str(v))
+    requests_kargs = "".join("{}{}={},\n".format(BASE_INDENT, k, str(v)) for k, v in sorted(kargs.items()))
 
     indent_count = 1
     indent = indent_count * BASE_INDENT
-    auth_data = ",\n{}auth={}".format(indent, parsed_context.auth) if parsed_context.auth else ""
-    proxy_data = ",\n{}proxy={}".format(indent, parsed_context.proxy) if parsed_context.proxy else ""
+    auth_data = "{}auth={},\n".format(indent, parsed_context.auth) if parsed_context.auth else ""
+    proxy_data = "{}proxy={},\n".format(indent, parsed_context.proxy) if parsed_context.proxy else ""
     formatter = {
         "client_setup": client_setup,
         "client": client,
         "method": parsed_context.method,
         "url": parsed_context.url,
         "data_token": data_token,
-        "headers_token": "{}headers={}".format(indent * indent_count, dict_to_pretty_string(parsed_context.headers)),
-        "cookies_token": "{}cookies={}".format(indent * indent_count, dict_to_pretty_string(parsed_context.cookies)),
+        "headers_token": "{}headers={},\n".format(
+            indent * indent_count, dict_to_pretty_string(parsed_context.headers)
+        ),  # if parsed_context.headers else "",
+        "cookies_token": "{}cookies={},\n".format(
+            indent * indent_count, dict_to_pretty_string(parsed_context.cookies)
+        ),  # if parsed_context.cookies else "",
         "security_token": verify_token,
         "requests_kargs": requests_kargs,
         "auth": auth_data,
         "proxies": proxy_data,
     }
 
-    return """{client_setup}{client}.{method}("{url}",
-{requests_kargs}{data_token}{headers_token},
-{cookies_token}{auth}{proxies}{security_token},
-)""".format(**formatter).strip()
-
+    return """
+{client_setup}{client}.{method}("{url}",
+{requests_kargs}{data_token}{headers_token}{cookies_token}{auth}{proxies}{security_token})
+""".format(**formatter).strip()
 
 @dataclass
-class StructuredRequest:
+class _StructuredRequest:
     # TODO: Use this class to create a structured request object
 
     url: str
