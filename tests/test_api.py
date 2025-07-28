@@ -63,7 +63,7 @@ def assert_equivalent_httpbin_response(httpx_response, example_curl_response, me
 
 
 @pytest.mark.parametrize("test", TESTS)
-def test_parse(test):
+def test_parse(test: ParametrizedConversion):
     expectation = test.with_endpoint(ENDPOINT)
     if isinstance(expectation.curl_cmd, tuple):
         curl_cmd, kwargs = expectation.curl_cmd
@@ -116,15 +116,22 @@ def test_parse_compatibility(test: ParametrizedConversion, httpx_client, endpoin
 
 @pytest.mark.parametrize("test", TESTS)
 def test_parse_ast_compare(test: ParametrizedConversion, httpx_client, endpoint):
+    print(f"Testing AST comparison for {test.name}:\n> {test.curl_cmd(endpoint=endpoint)}")
     expectation = test.with_endpoint(endpoint)
-    # if isinstance(expectation.curl_cmd, tuple):
-    #     pytest.skip("Not implemented")
-    # curl_json = _get_precomputed_curl_data(test)
-    # if not curl_json:
-    #     pytest.skip(f"Missing data for {test.name}")
-    manual_output = ast.unparse(ast.parse(uncurlx.parse(expectation.curl_cmd)))
-    ast_output = uncurlx.ast_api.parse(expectation.curl_cmd)
-    assert ast_output == manual_output, f"AST output does not match manual output for {test.name}"
+    original_output = None
+    if isinstance(expectation.curl_cmd, tuple):
+        curl_cmd, kwargs = expectation.curl_cmd
+        original_output = uncurlx.parse(curl_cmd, **kwargs)
+        ast_output = uncurlx.ast_api.parse(curl_cmd, **kwargs)
+
+    elif isinstance(expectation.curl_cmd, str):
+        original_output = uncurlx.parse(expectation.curl_cmd)
+        ast_output = uncurlx.ast_api.parse(expectation.curl_cmd)
+    else:
+        pytest.fail(f"Failed to parse {test.name} with uncurlx", True)
+    _tree = ast.parse(original_output)
+    standardised_original = ast.unparse(_tree)
+    assert ast_output == standardised_original, f"AST output does not match manual output for {test.name}"
 
 
 def _get_precomputed_curl_data(param):

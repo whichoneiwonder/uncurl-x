@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 import argparse
-from dataclasses import dataclass
 import json
 import re
 import shlex
-from collections import OrderedDict, namedtuple
-from http.cookies import SimpleCookie
 import types
-from typing import Any, List, Mapping, Optional, Tuple, Union
 import typing
+from collections import Counter, OrderedDict, namedtuple
+from dataclasses import dataclass
+from http.cookies import SimpleCookie
+from typing import Any, List, Mapping, Optional, Tuple, Union
 from urllib.parse import quote_plus
 
 import httpx
@@ -74,13 +74,14 @@ def parse_headers(
     data_content_type: Optional[str],
     range: Optional[str],
     referer: Optional[str],
-) -> Tuple[Mapping[str, str], Mapping[str, str]]:
+) -> Tuple[list[tuple[str, str]], Mapping[str, str]]:
     """
     Parse headers from the curl command and return a dictionary of headers and cookies.
     :param headers: List of headers from the curl command.
     :return: A tuple containing a dictionary of headers and a dictionary of cookies.
     """
-    quoted_headers = OrderedDict()
+    quoted_headers: list[tuple[str, str]] = list()
+    explicit_content_type = None
     cookie_dict = OrderedDict()
 
     for curl_header in headers:
@@ -99,14 +100,20 @@ def parse_headers(
             # cookie_dict.update({key: cookie[key].value})
             cookie_dict = dict(sorted([(key, value.value) for key, value in cookie.items()]))
         else:
-            quoted_headers[header_key] = header_value.strip()
-    if data_content_type and "Content-Type" not in quoted_headers:
-        quoted_headers["Content-Type"] = data_content_type
+            quoted_headers.append((header_key, header_value.strip()))
+            if header_key.lower() == "content-type":
+                explicit_content_type = header_value.strip()
+    if data_content_type and not explicit_content_type:
+        quoted_headers.append(("Content-Type", data_content_type))
     if range:
         range_header_value = parse_curl_range(range)
-        quoted_headers["Range"] = range_header_value
+        quoted_headers.append(("Range", range_header_value))
     if referer:
-        quoted_headers["Referer"] = referer
+        quoted_headers.append(("Referer", referer))
+    quoted_headers = sorted(quoted_headers, key=lambda x: x[0].lower())
+    repeat_headers_counter = Counter([x[0].lower() for x in quoted_headers])
+    if repeat_headers_counter and repeat_headers_counter.most_common(1)[0][1] <= 1:
+        quoted_headers = OrderedDict(quoted_headers)
     return quoted_headers, cookie_dict
 
 
@@ -129,11 +136,9 @@ def parse_context(curl_command: Union[str, List[str]]) -> ParsedContext:
         parsed_args.json,
     ):
         raise ValueError("You can only use one kind of -d/--data, -b/--data-binary, or -F/--form options at a time.")
-    data_content_type = None
     raw_data = parsed_args.data_binary or "&".join([*map(quote_plus, parsed_args.data), *parsed_args.data_urlencode])
     form_data = parsed_args.form
     json_data = None
-    data_content_type = None
     data_content_type = (
         "multipart/form-data" if parsed_args.form else "application/x-www-form-urlencoded" if raw_data else None
     )
@@ -247,6 +252,7 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
 {client_setup}{client}.{method}("{url}",
 {requests_kargs}{data_token}{headers_token}{cookies_token}{auth}{proxies}{security_token})
 """.format(**formatter).strip()
+
 
 @dataclass
 class _StructuredRequest:
