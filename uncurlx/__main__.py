@@ -10,7 +10,7 @@ except ImportError:
         return list()
 
 
-from .api import parse
+from .ast_api import parse
 
 
 def main() -> int:
