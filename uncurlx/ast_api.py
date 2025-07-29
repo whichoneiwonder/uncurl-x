@@ -72,7 +72,7 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     if not parsed_context.verify:
         func_call.keywords.append(ast.keyword(arg="verify", value=ast.Constant(False)))
     # Convert the AST to Python code
-    tree.append(func_call)
+    tree.body.append(func_call)
     return ast.unparse(tree)  # Python 3.9+
 
 
