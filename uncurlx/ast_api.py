@@ -103,7 +103,12 @@ def _maybe_sort_headers(
     skip: bool = False,
 ) -> HEADERS_TYPE:
     if skip:
-        return type(headers)(headers)  # Return copy in place, preserving type, but not sorting
+        if isinstance(headers, dict):
+            return headers.copy()  # Return a shallow copy of the dictionary
+        elif isinstance(headers, list):
+            return list(headers)  # Return a shallow copy of the list
+        else:
+            raise ValueError("Headers must be a dictionary or a list of tuples.")
     if isinstance(headers, dict):
         return dict(sorted(headers.items(), key=lambda item: item[0].lower()))
     elif isinstance(headers, list):
