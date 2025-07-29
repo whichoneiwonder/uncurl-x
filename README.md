@@ -1,6 +1,6 @@
 # Uncurl-X - Converting curl requests to python httpx requests
 
-![PyPI - Status](https://img.shields.io/pypi/status/uncurlx?style=flat-square&label=PyPI&)
+[![PyPI - Status](https://img.shields.io/pypi/status/uncurlx?style=flat-square&label=PyPI&)](https://pypi.org/project/uncurlx/)
 ![Python test Status](https://img.shields.io/github/actions/workflow/status/whichoneiwonder/uncurl-x/python-test.yml?label=Tests&style=flat-square)
 ![Dependencies Status](https://img.shields.io/github/actions/workflow/status/whichoneiwonder/uncurl-x/dependency-check.yml?label=deps-check&style=flat-square)
 <!-- ![GitHub branch status](https://img.shields.io/github/checks-status/whichoneiwonder/uncurl-x/master?style=flat-square) -->
