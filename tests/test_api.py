@@ -101,6 +101,8 @@ def test_parse_compatibility(test: ParametrizedConversion, httpx_client, endpoin
                 "httpx": client,
             }
             with warnings.catch_warnings():
+                # in python 3.13, catch_warnings can take the filter as an argument
+                # but in 3.9 it cannot, so we use simplefilter instead
                 warnings.simplefilter(action="ignore", category=DeprecationWarning)
                 exec(f"httpx_result = ({output})", globals(), temp_locals)
             httpx_result = temp_locals["httpx_result"]

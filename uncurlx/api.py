@@ -91,8 +91,7 @@ def parse_headers(
 
         if header_key.lower().strip("$") == "cookie":
             cookie = SimpleCookie(bytes(header_value, "ascii").decode("unicode-escape"))
-            # for key in cookie:
-            # cookie_dict.update({key: cookie[key].value})
+
             cookie_dict = dict(sorted([(key, value.value) for key, value in cookie.items()]))
         else:
             quoted_headers.append((header_key, header_value.strip()))
@@ -206,7 +205,7 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     client_setup = ""
     if parsed_context.unix_socket:
         client = "client"
-        client_setup = f'{client} = httpx.Client(transport=httpx.HttpTransport(uds="{parsed_context.unix_socket}"))\n'
+        client_setup = f'{client} = httpx.Client(transport=httpx.HTTPTransport(uds="{parsed_context.unix_socket}"))\n'
     data_token = ""
     if parsed_context.content:
         data_token = "{}content='{}',\n".format(BASE_INDENT, parsed_context.content)

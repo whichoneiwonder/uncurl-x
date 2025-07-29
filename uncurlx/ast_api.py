@@ -68,14 +68,14 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
                 value=ast.Tuple(elts=[ast.Constant(v) for v in parsed_context.auth]),
             )
         )
-    # add  auth line
+    # add auth line
     if not parsed_context.verify:
         func_call.keywords.append(ast.keyword(arg="verify", value=ast.Constant(False)))
     # Convert the AST to Python code
     return ast.unparse(func_call)  # Python 3.9+
 
 
-def _handle_headers(headers: dict | list[tuple[str, str]], tuple_as_list: bool = False) -> ast.keyword:
+def _handle_headers(headers: Union[dict, list[tuple[str, str]]], tuple_as_list: bool = False) -> ast.keyword:
     if not headers:
         return ast.keyword(arg="headers", value=ast.Constant(dict()))
     headers = _maybe_sort_headers(headers, skip=True)
@@ -117,7 +117,7 @@ def _make_client_constructor(uds: str) -> ast.Call:
             ast.keyword(
                 arg="transport",
                 value=ast.Call(
-                    func=ast.Attribute(value=ast.Name(id="httpx"), attr="HttpTransport"),
+                    func=ast.Attribute(value=ast.Name(id="httpx"), attr="HTTPTransport"),
                     keywords=[ast.keyword(arg="uds", value=ast.Constant(value=uds))],
                 ),
             ),

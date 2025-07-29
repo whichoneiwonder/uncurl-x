@@ -48,6 +48,7 @@ uncurlx = "uncurlx.__main__:main"
 [tool.ruff]
 line-length = 120
 lint.extend-select = ["I", "C90"]
+target-version = "py39"
 
 [tool.uv]
 
