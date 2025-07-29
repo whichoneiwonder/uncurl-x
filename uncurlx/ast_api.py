@@ -72,7 +72,7 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     if not parsed_context.verify:
         func_call.keywords.append(ast.keyword(arg="verify", value=ast.Constant(False)))
     # Convert the AST to Python code
-    return ast.unparse(func_call)  # Python 3.9+
+    return ast.unparse(tree)  # Python 3.9+
 
 
 def _handle_headers(headers: Union[dict, list[tuple[str, str]]], tuple_as_list: bool = False) -> ast.keyword:
@@ -117,11 +117,13 @@ def _make_client_constructor(uds: str) -> ast.Call:
             value=ast.Name(id="httpx"),
             attr="Client",
         ),
+        args=[],
         keywords=[
             ast.keyword(
                 arg="transport",
                 value=ast.Call(
                     func=ast.Attribute(value=ast.Name(id="httpx"), attr="HTTPTransport"),
+                    args=[],
                     keywords=[ast.keyword(arg="uds", value=ast.Constant(value=uds))],
                 ),
             ),
