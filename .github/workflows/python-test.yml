@@ -38,7 +38,7 @@ jobs:
       run: |
         python -m pip install . --group dev
     - name: Run tests
-      run: python -m pytest/ && echo tests ok
+      run: python -m pytest && echo tests ok
   
   old-python-test:
     permissions:

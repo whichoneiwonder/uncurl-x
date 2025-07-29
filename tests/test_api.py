@@ -100,7 +100,8 @@ def test_parse_compatibility(test: ParametrizedConversion, httpx_client, endpoin
                 **locals(),
                 "httpx": client,
             }
-            with warnings.catch_warnings(action="ignore", category=DeprecationWarning):
+            with warnings.catch_warnings():
+                warnings.simplefilter(action="ignore", category=DeprecationWarning)
                 exec(f"httpx_result = ({output})", globals(), temp_locals)
             httpx_result = temp_locals["httpx_result"]
         except SyntaxError as e:
