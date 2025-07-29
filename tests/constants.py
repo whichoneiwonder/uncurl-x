@@ -1,23 +1,25 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
+from typing import Callable, Union
 
 OLD_ENDPOINT = "https://pypi.python.org/pypi/uncurlx"
 ENDPOINT = "https://httpbin.org/anything"
 LOCAL_ENDPOINT = "http://localhost:8000/anything"
 
+CMD_TYPE = Union[str, tuple[str, dict[str, str]]]
+
 
 @dataclass
 class ExpectedConversion:
-    curl_cmd: str | tuple[str, dict[str, str]]
+    curl_cmd: CMD_TYPE
     expected: str
 
 
 @dataclass
 class ParametrizedConversion:
     name: str
-    curl_cmd: Callable[[str], str | tuple[str, dict[str, str]]]
+    curl_cmd: Callable[[str], CMD_TYPE]
     expected: Callable[[str], str]
 
     def with_endpoint(self, endpoint: str) -> ExpectedConversion:

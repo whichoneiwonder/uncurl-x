@@ -1,5 +1,5 @@
 import ast
-from typing import List, Union
+from typing import List, Optional, Union
 
 from .api import parse_context
 
@@ -47,7 +47,7 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     func_call.keywords.append(_handle_headers(parsed_context.headers, tuple_as_list=True))
 
     # Add dictionary values
-    dict_values: dict[str, dict[str, str] | None] = {
+    dict_values: dict[str, Optional[dict[str, str]]] = {
         "cookies": parsed_context.cookies or {},
         "proxy": parsed_context.proxy or None,
     }
@@ -94,9 +94,13 @@ def _handle_headers(headers: Union[dict, list[tuple[str, str]]], tuple_as_list: 
         )
 
 
+HEADERS_TYPE = Union[dict[str, str], list[tuple[str, str]]]
+
+
 def _maybe_sort_headers(
-    headers: dict | list[tuple[str, str]], skip: bool = False
-) -> Union[dict, list[tuple[str, str]]]:
+    headers: HEADERS_TYPE,
+    skip: bool = False,
+) -> HEADERS_TYPE:
     if skip:
         return type(headers)(headers)  # Return copy in place, preserving type, but not sorting
     if isinstance(headers, dict):
