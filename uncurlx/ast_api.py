@@ -7,7 +7,7 @@ from .api import parse_context
 def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     parsed_context = parse_context(curl_command)
 
-    tree = ast.Interactive()
+    tree = ast.Interactive(body=[])
     func_call_id = ast.Name(id="httpx")
     if parsed_context.unix_socket:
         tree.body.append(
