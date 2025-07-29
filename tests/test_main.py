@@ -32,7 +32,7 @@ def test_main_method(printer, fake_sys):
     main()
 
     printer.assert_called_once_with(
-        ast.unparse(
+        '\n' + ast.unparse(
             ast.parse(
                 """
 httpx.get("https://pypi.python.org/pypi/uncurlx",
