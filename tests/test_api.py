@@ -131,7 +131,30 @@ def test_parse_ast_compare(test: ParametrizedConversion, httpx_client, endpoint)
         pytest.fail(f"Failed to parse {test.name} with uncurlx", True)
     _tree = ast.parse(original_output)
     standardised_original = ast.unparse(_tree)
+
     assert ast_output == standardised_original, f"AST output does not match manual output for {test.name}"
+
+
+def _check_index_of_str(target_str: str, ast_str: str, og_str: str) -> tuple[int, int]:
+    """
+    Check the index of a target string in an AST string representation.
+    used for debugging certain tests
+    """
+    target_index = ast_str.find(target_str)
+    if target_index == -1:
+        raise ValueError(f"Target string '{target_str}' not found in AST string.")
+    og_index = og_str.find(target_str)
+    if og_index == -1:
+        raise ValueError(f"Original string '{og_str}' does not contain the target string '{target_str}'.")
+    if target_index > og_index:
+        print(
+            f"Warning: AST-produced output contains target string at column {target_index} which is greater than original index {og_index}. for string {target_str!r}"
+        )
+    elif target_index < og_index:
+        print(
+            f"Warning: AST-produced output contains target string at column {target_index} which is less than original index {og_index}. for string {target_str!r}"
+        )
+    return target_index, og_index
 
 
 def _get_precomputed_curl_data(param):

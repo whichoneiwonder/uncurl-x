@@ -6,6 +6,7 @@ from .api import parse_context
 
 def parse(curl_command: Union[str, List[str]], **kargs) -> str:
     parsed_context = parse_context(curl_command)
+
     tree = ast.Interactive()
     func_call_id = ast.Name(id="httpx")
     if parsed_context.unix_socket:
@@ -77,13 +78,11 @@ def parse(curl_command: Union[str, List[str]], **kargs) -> str:
 def _handle_headers(headers: dict | list[tuple[str, str]], tuple_as_list: bool = False) -> ast.keyword:
     if not headers:
         return ast.keyword(arg="headers", value=ast.Constant(dict()))
-    # Ensure headers is a list of tuples
+    headers = _maybe_sort_headers(headers, skip=True)
     if isinstance(headers, dict):
         return ast.keyword(
             arg="headers",
-            value=ast.Constant(dict(
-                sorted([(k, v) for k, v in headers.items()], key=lambda item: item[0].lower()),
-            ))
+            value=ast.Constant(dict(headers)),
         )
     elif isinstance(headers, list):
         _inner_type = ast.List if tuple_as_list else ast.Tuple
@@ -94,7 +93,17 @@ def _handle_headers(headers: dict | list[tuple[str, str]], tuple_as_list: bool =
             ),
         )
 
-    elif not isinstance(headers, list):
+
+def _maybe_sort_headers(
+    headers: dict | list[tuple[str, str]], skip: bool = False
+) -> Union[dict, list[tuple[str, str]]]:
+    if skip:
+        return type(headers)(headers)  # Return copy in place, preserving type, but not sorting
+    if isinstance(headers, dict):
+        return dict(sorted(headers.items(), key=lambda item: item[0].lower()))
+    elif isinstance(headers, list):
+        return sorted(headers, key=lambda item: item[0].lower())
+    else:
         raise ValueError("Headers must be a dictionary or a list of tuples.")
 
 

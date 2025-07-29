@@ -230,8 +230,8 @@ TESTS = [
     headers={
         "Accept": "/",
         "BodyEncryptType": "0",
-        "CUID": "wx_app",
         "Content-Type": "text/plain; charset=utf-8",
+        "CUID": "wx_app",
         "DivideVersion": "1.0",
         "Host": "pandahomeios.ifjing.com",
         "IMEI": "wx_app",
