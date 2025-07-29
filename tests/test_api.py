@@ -1,347 +1,167 @@
-import unittest  # noqa # Hey! Do not delete this import for the tests to pass
+import ast
+import pathlib
+import warnings
+from http.cookies import SimpleCookie
+
+import httpx
+import pytest
+from flask import json
 
 import uncurlx
+from tests.constants import (
+    ENDPOINT,
+    LOCAL_ENDPOINT,
+    TESTS,
+    ParametrizedConversion,
+)
 
 
-OLD_ENDPOINT = "https://pypi.python.org/pypi/uncurlx"
-ENDPOINT = "https://httpbin.org/anything"
+@pytest.fixture(scope="module")
+def httpbin_app():
+    try:
+        import httpbin
+    except ImportError:
+        pytest.skip("httpbin not installed")
+    return httpbin.app
 
 
-class TestUncurlx(unittest.TestCase):
-    def test_basic_get(self):
-        output = uncurlx.parse(f"curl '{ENDPOINT}'")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={},
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
+@pytest.fixture
+def httpx_client(httpbin_app):
+    wsgi_transport = httpx.WSGITransport(app=httpbin_app)
+    return httpx.Client(transport=wsgi_transport)
 
-    def test_colon_header(self):
-        output = uncurlx.parse(f"curl '{ENDPOINT}' -H 'authority:mobile.twitter.com'")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={
-        "authority": "mobile.twitter.com"
-    },
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
 
-    def test_basic_headers(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Accept-Language: en-US,en;q=0.8'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch",
-        "Accept-Language": "en-US,en;q=0.8"
-    },
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
+@pytest.fixture
+def endpoint():
+    return LOCAL_ENDPOINT
 
-    def test_cookies(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch"
-    },
-    cookies={
-        "baz": "baz2",
-        "foo": "bar"
-    },
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
 
-    def test_cookies_lowercase(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'cookie: foo=bar; baz=baz2'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch"
-    },
-    cookies={
-        "baz": "baz2",
-        "foo": "bar"
-    },
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
+def assert_equivalent_httpbin_response(httpx_response, example_curl_response, message=None):
+    """
+    Compare two httpbin responses to see if they are equivalent.
+    """
+    httpx_headers = httpx_response.get("headers", {})
+    example_curl_headers = example_curl_response.get("headers", {})
+    # Remove the headers that are not relevant to the test
+    if "Accept-Encoding" in httpx_headers and "Accept-Encoding" not in example_curl_headers:
+        del httpx_headers["Accept-Encoding"]
+    if httpx_headers.get("Connection") == "keep-alive" and "Connection" not in example_curl_headers:
+        del httpx_headers["Connection"]
+    if httpx_headers.get("User-Agent", "").startswith("python-httpx/") and example_curl_headers.get(
+        "User-Agent", ""
+    ).startswith("curl/"):
+        del httpx_headers["User-Agent"]
+        del example_curl_headers["User-Agent"]
+    if "Content-Length" in httpx_headers and "Content-Length" not in example_curl_headers:
+        if httpx_headers["Content-Length"] == "0":
+            del httpx_headers["Content-Length"]
+    if cookies := httpx_headers.get("Cookie"):
+        httpx_headers["Cookie"] = dict(sorted(SimpleCookie(cookies).items()))
+    if curl_cookies := example_curl_headers.get("Cookie"):
+        example_curl_headers["Cookie"] = dict(sorted(SimpleCookie(curl_cookies).items()))
+    assert httpx_response == example_curl_response, message
 
-    def test_cookies_dollar_sign(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch' -H $'Cookie: somereallyreallylongcookie=true'"
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch"
-    },
-    cookies={
-        "somereallyreallylongcookie": "true"
-    },
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
 
-    def test_post(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
-            """ --data '[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
-            + """
-    data='[{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"},"now":1396219192277,"ab":{"welcome_email":{"v":"2","g":2}}}]',
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch",
-        "Content-Type": "application/x-www-form-urlencoded"
-    },
-    cookies={
-        "baz": "baz2",
-        "foo": "bar"
-    },
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
+@pytest.mark.parametrize("test", TESTS)
+def test_parse(test: ParametrizedConversion):
+    expectation = test.with_endpoint(ENDPOINT)
+    if isinstance(expectation.curl_cmd, tuple):
+        curl_cmd, kwargs = expectation.curl_cmd
+        output = uncurlx.parse(curl_cmd, **kwargs)
+    else:
+        output = uncurlx.parse(expectation.curl_cmd)
+    assert output == expectation.expected, f"failed to parse test: {test.name}"
 
-    def test_post_with_dict_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
-            """ --data '{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"}}' -H 'Accept-Encoding: gzip,deflate,sdch' -H 'Cookie: foo=bar; baz=baz2'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
-            + """
-    data='{"evt":"newsletter.show","properties":{"newsletter_type":"userprofile"}}',
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch",
-        "Content-Type": "application/x-www-form-urlencoded"
-    },
-    cookies={
-        "baz": "baz2",
-        "foo": "bar"
-    },
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
 
-    def test_post_with_string_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}' """
-            """--data 'this is just some data'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
-            + """
-    data='this is just some data',
-    headers={
-        "Content-Type": "application/x-www-form-urlencoded"
-    },
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
+@pytest.mark.parametrize("test", TESTS)
+def test_parse_local(test: ParametrizedConversion):
+    expectation = test.with_endpoint(LOCAL_ENDPOINT)
+    if isinstance(expectation.curl_cmd, tuple):
+        curl_cmd, kwargs = expectation.curl_cmd
+        output = uncurlx.parse(curl_cmd, **kwargs)
+    else:
+        output = uncurlx.parse(expectation.curl_cmd)
+    assert output == expectation.expected, f"failed to parse test: {test.name}"
 
-    def test_parse_curl_with_binary_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
-            """ --data-binary 'this is just some data'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
-            + """
-    data='this is just some data',
-    headers={},
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
 
-    def test_parse_curl_with_raw_data(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}'"""
-            """ --data-raw 'this is just some data'"""
-        )
-        expected = (
-            """httpx.post("{}",""".format(ENDPOINT)
-            + """
-    data='this is just some data',
-    headers={},
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
+@pytest.mark.parametrize("test", TESTS)
+def test_parse_compatibility(test: ParametrizedConversion, httpx_client, endpoint):
+    expectation = test.with_endpoint(endpoint)
+    if isinstance(expectation.curl_cmd, tuple):
+        pytest.skip("Not implemented")
+    curl_json = _get_precomputed_curl_data(test)
+    if not curl_json:
+        pytest.skip(f"Missing data for {test.name}")
+    output = uncurlx.parse(expectation.curl_cmd)
+    with httpx_client as client:
+        httpx_result = httpx.Response(999)
+        try:
+            temp_locals = {
+                **locals(),
+                "httpx": client,
+            }
+            with warnings.catch_warnings():
+                # in python 3.13, catch_warnings can take the filter as an argument
+                # but in 3.9 it cannot, so we use simplefilter instead
+                warnings.simplefilter(action="ignore", category=DeprecationWarning)
+                exec(f"httpx_result = ({output})", globals(), temp_locals)
+            httpx_result = temp_locals["httpx_result"]
+        except SyntaxError as e:
+            raise RuntimeError("invalid output", output) from e
+        if httpx_result.status_code != 200:
+            raise RuntimeError("Failed to fetch", output, httpx_result)
+    assert_equivalent_httpbin_response(
+        httpx_response=httpx_result.json(),
+        example_curl_response=curl_json,
+        message=f"Failed comparison for testcase: {test.name}",
+    )
 
-    def test_parse_curl_with_another_binary_data(self):
-        output = uncurlx.parse(
-            r"""curl -H 'PID: 20000079' -H 'MT: 4' -H 'DivideVersion: 1.0' -H 'SupPhone: Redmi Note 3' -H 'SupFirm: 5.0.2' -H 'IMEI: wx_app' -H 'IMSI: wx_app' -H 'SessionId: ' -H 'CUID: wx_app' -H 'ProtocolVersion: 1.0' -H 'Sign: 7876480679c3cfe9ec0f82da290f0e0e' -H 'Accept: /' -H 'BodyEncryptType: 0' -H 'User-Agent: Mozilla/5.0 (Linux; Android 6.0.1; OPPO R9s Build/MMB29M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/67.0.3396.87 Mobile Safari/537.36 hap/1.0/oppo com.nearme.instant.platform/2.1.0beta1 com.felink.quickapp.reader/1.0.3 ({"packageName":"com.oppo.market","type":"other","extra":{}})' -H 'Content-Type: text/plain; charset=utf-8' -H 'Host: pandahomeios.ifjing.com' --data-binary '{"CateID":"508","PageIndex":1,"PageSize":30}' --compressed"""
-            f""" '{ENDPOINT}/action.ashx/otheraction/9028'"""
-        )
-        expected = (
-            f"""httpx.post("{ENDPOINT}/action.ashx/otheraction/9028","""
-            r"""
-    data='{"CateID":"508","PageIndex":1,"PageSize":30}',
-    headers={
-        "Accept": "/",
-        "BodyEncryptType": "0",
-        "CUID": "wx_app",
-        "Content-Type": "text/plain; charset=utf-8",
-        "DivideVersion": "1.0",
-        "Host": "pandahomeios.ifjing.com",
-        "IMEI": "wx_app",
-        "IMSI": "wx_app",
-        "MT": "4",
-        "PID": "20000079",
-        "ProtocolVersion": "1.0",
-        "SessionId": "",
-        "Sign": "7876480679c3cfe9ec0f82da290f0e0e",
-        "SupFirm": "5.0.2",
-        "SupPhone": "Redmi Note 3",
-        "User-Agent": "Mozilla/5.0 (Linux; Android 6.0.1; OPPO R9s Build/MMB29M; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/67.0.3396.87 Mobile Safari/537.36 hap/1.0/oppo com.nearme.instant.platform/2.1.0beta1 com.felink.quickapp.reader/1.0.3 ({\"packageName\":\"com.oppo.market\",\"type\":\"other\",\"extra\":{}})"
-    },
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
 
-    def test_parse_curl_with_insecure_flag(self):
-        output = uncurlx.parse(f"""curl '{ENDPOINT}' --insecure""")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={},
-    cookies={},
-    auth=(),
-    proxy={},
-    verify=False
-)"""
-        )
-        self.assertEqual(output, expected)
+@pytest.mark.parametrize("test", TESTS)
+def test_parse_ast_compare(test: ParametrizedConversion, httpx_client, endpoint):
+    print(f"Testing AST comparison for {test.name}:\n> {test.curl_cmd(endpoint=endpoint)}")
+    expectation = test.with_endpoint(endpoint)
+    original_output = None
+    if isinstance(expectation.curl_cmd, tuple):
+        curl_cmd, kwargs = expectation.curl_cmd
+        original_output = uncurlx.parse(curl_cmd, **kwargs)
+        ast_output = uncurlx.ast_api.parse(curl_cmd, **kwargs)
 
-    def test_parse_curl_with_request_kargs(self):
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch'",
-            timeout=0.1,
-            allow_redirects=True,
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    allow_redirects=True,
-    timeout=0.1,
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch"
-    },
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
-        output = uncurlx.parse(
-            f"curl '{ENDPOINT}' -H 'Accept-Encoding: gzip,deflate,sdch'",
-            timeout=0.1,
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    timeout=0.1,
-    headers={
-        "Accept-Encoding": "gzip,deflate,sdch"
-    },
-    cookies={},
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
+    elif isinstance(expectation.curl_cmd, str):
+        original_output = uncurlx.parse(expectation.curl_cmd)
+        ast_output = uncurlx.ast_api.parse(expectation.curl_cmd)
+    else:
+        pytest.fail(f"Failed to parse {test.name} with uncurlx", True)
+    _tree = ast.parse(original_output)
+    standardised_original = ast.unparse(_tree)
 
-    def test_parse_curl_with_escaped_newlines(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}' \\\n -H 'Accept-Encoding: gzip,deflate' \\\n --insecure"""
-        )
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={
-        "Accept-Encoding": "gzip,deflate"
-    },
-    cookies={},
-    auth=(),
-    proxy={},
-    verify=False
-)"""
-        )
-        self.assertEqual(output, expected)
+    assert ast_output == standardised_original, f"AST output does not match manual output for {test.name}"
 
-    def test_parse_curl_escaped_unicode_in_cookie(self):
-        output = uncurlx.parse(
-            f"""curl '{ENDPOINT}' -H $'cookie: sid=00Dt00000004XYz\\u0021ARg' """
-        )
-        expected = (
-            f"""httpx.get("{ENDPOINT}","""
-            """
-    headers={},
-    cookies={
-        "sid": "00Dt00000004XYz!ARg"
-    },
-    auth=(),
-    proxy={},
-)"""
-        )
-        self.assertEqual(output, expected)
 
-    def test_parse_curl_with_proxy_and_proxy_auth(self):
-        output = uncurlx.parse(f"curl '{ENDPOINT}' -U user: -x proxy.python.org:8080")
-        expected = (
-            """httpx.get("{}",""".format(ENDPOINT)
-            + """
-    headers={},
-    cookies={},
-    auth=(),
-    proxy={'http': 'http://user:@proxy.python.org:8080/', 'https': 'http://user:@proxy.python.org:8080/'},
-)"""
+def _check_index_of_str(target_str: str, ast_str: str, og_str: str) -> tuple[int, int]:
+    """
+    Check the index of a target string in an AST string representation.
+    used for debugging certain tests
+    """
+    target_index = ast_str.find(target_str)
+    if target_index == -1:
+        raise ValueError(f"Target string '{target_str}' not found in AST string.")
+    og_index = og_str.find(target_str)
+    if og_index == -1:
+        raise ValueError(f"Original string '{og_str}' does not contain the target string '{target_str}'.")
+    if target_index > og_index:
+        print(
+            f"Warning: AST-produced output contains target string at column {target_index} which is greater than original index {og_index}. for string {target_str!r}"
         )
-        self.assertEqual(output, expected)
+    elif target_index < og_index:
+        print(
+            f"Warning: AST-produced output contains target string at column {target_index} which is less than original index {og_index}. for string {target_str!r}"
+        )
+    return target_index, og_index
+
+
+def _get_precomputed_curl_data(param):
+    json_file = pathlib.Path(__file__).parent.joinpath("data", f"{param.name}.json")
+    if json_file.exists():
+        return json.loads(json_file.read_text())
+    return None

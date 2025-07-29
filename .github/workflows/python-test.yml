@@ -22,12 +22,11 @@ jobs:
     strategy:
       matrix:
         python-version: 
-          - '3.11'
-          - '3.12'
-          - '3.13t'
-          - '3.13'
           - 3.14-dev
-          # - 3.14t-dev
+          - '3.13'
+          - '3.12'
+          - '3.11'
+          # - '3.13t' # #20:  https://github.com/whichoneiwonder/uncurl-x/issues/20 
 
     steps:
     - uses: actions/checkout@v4
@@ -37,9 +36,9 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install .[test]
+        python -m pip install . --group dev
     - name: Run tests
-      run: python -m unittest discover tests/ && echo tests ok
+      run: python -m pytest && echo tests ok
   
   old-python-test:
     permissions:
@@ -53,16 +52,16 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
-        python -m pip install .[test]
+        python -m pip install . --group dev
     - name: Run tests
-      run: python -m unittest discover tests/ && echo tests ok
+      run: python -m pytest && echo tests ok
   
     strategy:
       matrix:
         python-version: 
-          - 3.8
-          - 3.9
           - '3.10'
+          - 3.9
+          # - 3.8 # ast.unparse is not available in 3.8
 
   lint:
     runs-on: ubuntu-latest
