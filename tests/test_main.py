@@ -1,3 +1,4 @@
+import ast
 import shlex
 from unittest.mock import patch
 
@@ -31,7 +32,9 @@ def test_main_method(printer, fake_sys):
     main()
 
     printer.assert_called_once_with(
-        """
+        ast.unparse(
+            ast.parse(
+                """
 httpx.get("https://pypi.python.org/pypi/uncurlx",
     headers={
         "Accept-Encoding": "gzip,deflate,sdch",
@@ -39,4 +42,6 @@ httpx.get("https://pypi.python.org/pypi/uncurlx",
     },
     cookies={},
 )"""
+            )
+        )
     )
